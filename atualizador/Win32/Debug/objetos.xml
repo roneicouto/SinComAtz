@@ -1,0 +1,1 @@
+<?xml version="1.0" standalone="yes"?>  <DATAPACKET Version="2.0"><METADATA><FIELDS><FIELD attrname="tipo" fieldtype="string" WIDTH="20"/><FIELD attrname="nome" fieldtype="bin.hex" SUBTYPE="Text"/><FIELD attrname="definicao" fieldtype="bin.hex" SUBTYPE="WideText"/></FIELDS><PARAMS/></METADATA><ROWDATA></ROWDATA></DATAPACKET>

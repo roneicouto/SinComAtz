@@ -1,0 +1,29 @@
+<XmlTransformation Version="1.0"><Transform Direction="ToCds" DataEncoding="UTF-8"><SelectEach dest="DATAPACKET\ROWDATA\ROW" from="\objetos\objeto"><Select dest="@tipo" from="\tipo"/><Select dest="@nome" from="\nome"/><Select dest="@definicao" from="\definicao"/></SelectEach></Transform><XmlSchema RootName="objetos"><![CDATA[<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <element xmlns="http://www.w3.org/2001/XMLSchema" name="objetos" type="objetosType"/>
+  <complexType xmlns="http://www.w3.org/2001/XMLSchema" name="objetosType">
+    <sequence>
+      <element name="objeto" type="objetoType"/>
+    </sequence>
+  </complexType>
+  <element xmlns="http://www.w3.org/2001/XMLSchema" name="objeto" type="objetoType"/>
+  <complexType xmlns="http://www.w3.org/2001/XMLSchema" name="objetoType">
+    <sequence>
+      <element name="tipo" type="tipoType"/>
+      <element name="nome" type="nomeType"/>
+      <element name="definicao" type="definicaoType"/>
+    </sequence>
+  </complexType>
+  <element xmlns="http://www.w3.org/2001/XMLSchema" name="tipo" type="tipoType"/>
+  <simpleType xmlns="http://www.w3.org/2001/XMLSchema" name="tipoType">
+    <restriction base="xs:string"/>
+  </simpleType>
+  <element xmlns="http://www.w3.org/2001/XMLSchema" name="nome" type="nomeType"/>
+  <simpleType xmlns="http://www.w3.org/2001/XMLSchema" name="nomeType">
+    <restriction base="xs:string"/>
+  </simpleType>
+  <element xmlns="http://www.w3.org/2001/XMLSchema" name="definicao" type="definicaoType"/>
+  <simpleType xmlns="http://www.w3.org/2001/XMLSchema" name="definicaoType">
+    <restriction base="xs:string"/>
+  </simpleType>
+</xs:schema>]]></XmlSchema><CdsSkeleton/><XslTransform/><Skeleton><![CDATA[<?xml version="1.0"?><DATAPACKET Version="2.0"><METADATA><FIELDS><FIELD attrname="tipo" fieldtype="string" WIDTH="6"/><FIELD attrname="nome" fieldtype="string" WIDTH="7"/><FIELD attrname="definicao" fieldtype="string" WIDTH="20"/></FIELDS><PARAMS/></METADATA><ROWDATA/><METADATA><FIELDS><FIELD attrname="tipo" fieldtype="string" WIDTH="6"/><FIELD attrname="nome" fieldtype="string" WIDTH="7"/><FIELD attrname="definicao" fieldtype="string" WIDTH="20"/></FIELDS><PARAMS/></METADATA><ROWDATA/></DATAPACKET>
+]]></Skeleton></XmlTransformation>

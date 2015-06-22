@@ -1,0 +1,29 @@
+unit uXClientDataSet;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Data.DB, Datasnap.DBClient;
+
+type
+  TxClientDataSet = class(TClientDataSet)
+  private
+    { Private declarations }
+  protected
+    { Protected declarations }
+  public
+    { Public declarations }
+  published
+    { Published declarations }
+  end;
+
+procedure Register;
+
+implementation
+
+procedure Register;
+begin
+  RegisterComponents('xComponentes', [TxClientDataSet]);
+end;
+
+end.

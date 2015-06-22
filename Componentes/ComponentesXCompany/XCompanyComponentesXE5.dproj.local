@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2014/05/30 09:43:42.000.062,D:\Desenvolvimento\xcompany\Pacotes\ComponentesXCompane\XCompanyComponentes.dproj=D:\Desenvolvimento\xcompany\Pacotes\ComponentesXCompane\XCompanyComponentesXE5.dproj</Transaction>
+    <Transaction>2014/05/30 09:44:14.000.909,=RaizeComponentsVcl.dcp</Transaction>
+    <Transaction>2014/05/30 09:44:14.000.955,=RaizeComponentsVclDb.dcp</Transaction>
+    <Transaction>2014/05/30 09:44:14.000.863,=tmsdXE5.dcp</Transaction>
+    <Transaction>2014/08/19 20:44:14.000.428,=ZDbc.dcp</Transaction>
+    <Transaction>2014/08/19 20:44:14.000.390,=ZComponent.dcp</Transaction>
+    <Transaction>2014/08/19 20:44:14.000.541,=ZParseSql.dcp</Transaction>
+    <Transaction>2014/08/19 20:44:14.000.503,=ZCore.dcp</Transaction>
+    <Transaction>2014/08/19 20:44:14.000.465,=ZPlain.dcp</Transaction>
+  </Transactions>
+</BorlandProject>

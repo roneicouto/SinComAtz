@@ -1,0 +1,440 @@
+unit uXDBGridZebrado;
+
+interface
+
+uses Windows, messages, SysUtils, Classes, Graphics, RzDBGrid, Controls, db,
+  Vcl.DBGrids, Vcl.DBCtrls,  Vcl.Grids, Vcl.StdCtrls;
+
+const
+  DefxGridOptions = [dgTitles, dgColumnResize, dgColLines, dgCancelOnExit, dgTitleClick, dgTitleHotTrack, dgIndicator];
+
+type
+  TOutraOpcao = (opEditavel, opMultinha, opShowVScrollBar);
+  TOutrasOpcoes = set of TOutraOpcao;
+
+  TMyDBGrid = class( TRzDBGrid )
+  private
+    { private declarations }
+  protected
+    { protected declarations }
+  public
+    { public declarations }
+
+  published
+    { published declarations }
+    property DefaultRowHeight;
+  end;
+
+  TxDBGridZebrado = class(TRzDBGrid)
+  private
+    FAlternateColor: Boolean;
+    FLowColor: TColor;
+    FHighColor: TColor;
+    FPadrao: boolean;
+    FEditavel: Boolean;
+    FAtivaReadOnlyColor: boolean;
+    FCamposCheckBox: String;
+    FMultiLinha: Boolean;
+    FRowHeights: Integer;
+    FShowVScrollBar: Boolean;
+    FOutrasOpcoes: TOutrasOpcoes;
+    FOptionsInicial: TDBGridOptions;
+
+    procedure SetHighColor(Value: TColor);
+    procedure SetLowColor(Value: TColor);
+    procedure SetAlternateColor(Value: Boolean);
+    procedure SetPadrao(const Value: boolean);
+    procedure SetEditavel(const Value: Boolean);
+    procedure DrawColumnCellMemo( const Rect: TRect; DataCol: Integer; Column: TColumn; State: TGridDrawState );
+    procedure SetShowVScrollBar(const Value: Boolean);
+    procedure SetMultiLinha(const Value: Boolean);
+    procedure MarcaDesmarcaCheck;
+    procedure SetFOutrasOpcoes(const Value: TOutrasOpcoes);
+    function  GetOptions: TDBGridOptions;
+    procedure SetOptions(Value: TDBGridOptions);
+    property OptionsInicial: TDBGridOptions read FOptionsInicial;
+  protected
+    procedure DrawColumnCell(const Rect: TRect; DataCol: Integer;  Column: TColumn; State: TGridDrawState); override;
+    procedure KeyDown( var Key: Word; Shift: TShiftState ); override;
+    procedure ColEnter; override;
+    procedure DblClick; override;
+    procedure Update; override;
+    procedure Paint; override;
+  public
+    constructor Create(AOwner: TComponent); override;
+    property Canvas;
+    property SelectedRows;
+
+  published
+    property CamposCheckBox: String read fCamposCheckBox write fCamposCheckBox;
+    property Padrao: boolean read FPadrao write SetPadrao;
+    property Align;
+    property AlternateColor: Boolean read FAlternateColor  write SetAlternateColor;
+    property AtivaReadOnlyColor: boolean read FAtivaReadOnlyColor  write FAtivaReadOnlyColor default False;
+    property BorderStyle;
+    property Color;
+    property ColorLow: TColor read FLowColor write SetLowColor;
+    property ColorHigh: TColor read FHighColor write SetHighColor;
+    property Columns stored False;
+    property Editavel: Boolean read FEditavel write SetEditavel stored true;
+    ///<summary>Define se o Grid vai ter multi linhas, assim aumentando a altura da linha.
+    /// O evento "OnDrawColumnCell" deve ser implementado em cada grid</summary>
+    property MultiLinha: Boolean read FMultiLinha write SetMultiLinha default False;
+    property ShowVScrollBar: Boolean read FShowVScrollBar write SetShowVScrollBar default False;
+    property OutrasOpcoes: TOutrasOpcoes read FOutrasOpcoes write SetFOutrasOpcoes;
+
+    // StoreColumns;
+    property Ctl3D;
+    property DataSource;
+    property DefaultDrawing;
+    property DragCursor;
+    property DragMode;
+    property Enabled;
+    property FixedColor;
+    property Font;
+    property ImeMode;
+    property ImeName;
+   // property Options stored true default DefxGridOptions;
+    property Options: TDBGridOptions read GetOptions write SetOptions default DefxGridOptions ;
+    property ParentColor;
+    property ParentCtl3D;
+    property ParentFont;
+    property ParentShowHint;
+    property PopupMenu;
+    property ReadOnly;
+    property ShowHint;
+    property TabOrder;
+    property TabStop;
+    property TitleFont;
+    property Visible;
+    property OnColExit;
+    property OnColumnMoved;
+    property OnDrawColumnCell;
+    property OnDragDrop;
+    property OnDragOver;
+    property OnEditButtonClick;
+    property OnEndDrag;
+    property OnEnter;
+    property OnExit;
+    property OnKeyPress;
+    property OnKeyUp;
+    property OnStartDrag;
+    property OnTitleClick;
+  end;
+
+procedure Register;
+
+implementation
+
+uses  uClasseDefinePadrao, uXComponentesConstantes, uClasseFuncoes,
+  System.Math;
+
+procedure Register;
+begin
+  RegisterComponents('xComponentes', [TxDBGridZebrado]);
+end;
+
+procedure TxDBGridZebrado.ColEnter;
+var
+  Coluna: TColumn;
+begin
+  inherited;
+  if CamposCheckBox.trim <> '' then
+  begin
+    Coluna := self.Columns[self.SelectedIndex];
+     // se um campo é booleano ele não vai ser editado apenas clicado
+    if Editavel then
+      if UpperCase(CamposCheckBox).IndexOf(UpperCase(Coluna.Field.FieldName)) <> -1  then
+      begin
+        Options := Options - [dgEditing];
+      end
+      else
+      begin
+        Options := Options + [dgEditing];
+      end;
+  end;
+end;
+
+constructor TxDBGridZebrado.Create(AOwner: TComponent);
+begin
+  FShowVScrollBar := ShowVScrollBar;
+  inherited Create(AOwner);
+  FAtivaReadOnlyColor := True;
+
+  if Self.Padrao then
+  begin
+    TDefinePadrao.SetaPadrao(self, True);
+  end;
+
+  FRowHeights := RowHeights[ 0 ]; // TMyDBGrid( AOwner ).RowHeights[ 0 ];
+end;
+
+procedure TxDBGridZebrado.DrawColumnCell(const Rect: TRect; DataCol: Integer; Column: TColumn; State: TGridDrawState);
+Const
+  TextAlignments : Array[ TAlignment ] of Word = ( DT_LEFT, DT_RIGHT, DT_CENTER );
+var
+  Check, Altura, RowHeight, tamRow: Integer;
+  R: TRect;
+  Text : String;
+  aText : TArray<String>;
+  DrawFlags: Cardinal;
+  bMemo : Boolean;
+begin
+  R := Rect;
+  bMemo :=  ( Column.Field <> nil ) and ( Column.Field.DataType = ftWideMemo );
+
+  DrawFlags := DT_END_ELLIPSIS or DT_NOPREFIX or DT_WORDBREAK or DT_EDITCONTROL;
+  Column.Title.Alignment := taCenter;
+  if Column.ReadOnly and FAtivaReadOnlyColor and (not FAlternateColor) then
+    Canvas.Brush.Color := CorReadOnly ;
+
+  if FMultiLinha then
+    if Column.Field.DataType in [ ftWideMemo ] then
+    begin
+      Text  := Column.Field.AsString;
+      aText := Text.Split( [ #13 ] );
+      //RowHeight  := FRowHeights * Max( Length( aText ), 1 );
+      Canvas.FillRect( R );
+      RowHeight := FRowHeights * Max( Length( aText ), 1 );  //DrawText( Canvas.Handle, PChar( Text ), -1, R, DrawFlags or DT_CALCRECT );
+      Altura := Max( FRowHeights, RowHeight );
+      RowHeights[ DataSource.DataSet.RecNo ] := Altura;
+    end;
+
+  if FAlternateColor then
+  begin
+
+    if Column.ReadOnly and FAtivaReadOnlyColor then
+      Canvas.Brush.Color := CorReadOnly
+    else if (DataSource.DataSet.RecNo mod 2) = 0 then
+      Canvas.Brush.Color := FLowColor
+    else
+      Canvas.Brush.Color := FHighColor;
+
+    Canvas.FillRect(Rect); // pinta a célula
+    DefaultDrawColumnCell(Rect, DataCol, Column, State);
+
+    if ( gdSelected in State ) and Self.Focused then
+      Self.DrawCellHighlight( Rect, State, DataCol, 0 );
+
+    if ( (not (gdSelected in State)) and (gdFocused in State) ) or ( (not (DataLink.ActiveRecord <> Row - 1) ) ) then
+    begin
+
+      if bMemo then        DrawColumnCellMemo( Rect, DataCol, Column, State )
+      else  // Utiliza o evento padrao do componente
+        inherited DrawColumnCell(Rect, DataCol, Column, State);
+
+    end;
+
+  end;
+
+  //Canvas.FillRect(Rect); // pinta a célula
+  //DefaultDrawColumnCell(Rect, DataCol, Column, State);
+
+  if Assigned( OnDrawColumnCell ) then // executa o evento definido pelo usuario
+    OnDrawColumnCell(Self, Rect, DataCol, Column, State)
+  else
+    if bMemo then
+      DrawColumnCellMemo( Rect, DataCol, Column, State )
+    else
+      inherited DrawColumnCell(Rect, DataCol, Column, State);
+
+  if CamposCheckBox.Trim <> '' then
+  begin
+    if Column.Field <> nil then
+      if UpperCase(CamposCheckBox).IndexOf(UpperCase(Column.Field.FieldName)) <> -1  then
+      begin
+        Column.Alignment := taCenter;
+        Column.Field.Alignment := taCenter;
+        Column.ReadOnly := True;
+
+        if Column.Field.DataType = ftBoolean then
+        begin
+          Check := TFuncoes.IIf(Column.Field.AsBoolean, DFCS_CHECKED, 0)
+        end
+        else if Column.Field.DataType in [ftInteger, ftSmallint, ftShortint, ftWord] then
+        begin
+          Check := TFuncoes.IIf(Column.Field.AsInteger = 1, DFCS_CHECKED, 0)
+        end;
+
+        R := Rect;
+        InflateRect( R, -2, -2 ); {Diminue o tamanho do CheckBox}
+        DrawFrameControl( self.Canvas.Handle, R, DFC_BUTTON, DFCS_BUTTONCHECK or Check );
+      end;
+  end;
+
+end;
+
+procedure TxDBGridZebrado.DrawColumnCellMemo(const Rect: TRect;
+  DataCol: Integer; Column: TColumn; State: TGridDrawState);
+var
+  Check, Altura, RowHeight, tamRow, DefHeight: Integer;
+  R: TRect;
+  Text : String;
+  aText : TArray<String>;
+  DrawFlags: Cardinal;
+begin
+  R := Rect;
+  DrawFlags := DT_END_ELLIPSIS or DT_NOPREFIX or DT_WORDBREAK or DT_EDITCONTROL;
+
+  if ( Column.Field <> nil ) and ( Column.Field.DataType in [ ftWideMemo ] ) then
+  begin
+    Text  := Column.Field.AsString;
+    aText := Text.Split( [ #13 ] );
+    Canvas.FillRect( R );
+    DrawText( Canvas.Handle, PChar( Text ), -1, R, DrawFlags );
+  end;
+
+end;
+
+procedure TxDBGridZebrado.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  inherited;
+  if key = VK_SPACE then  
+    MarcaDesmarcaCheck;
+end;
+
+procedure TxDBGridZebrado.DblClick;
+begin
+  inherited;
+  MarcaDesmarcaCheck;
+end;
+
+procedure TxDBGridZebrado.MarcaDesmarcaCheck;
+var
+  Coluna: TColumn;
+begin
+  inherited;
+  Coluna := self.Columns[self.SelectedIndex];
+  if (CamposCheckBox.Trim <> '') and (DataSource <> nil) and (Coluna.Field <> nil) then
+    if Coluna.Visible then
+    begin
+      if UpperCase(CamposCheckBox).IndexOf(UpperCase(Coluna.Field.FieldName)) <> -1  then
+      begin
+        if DataSource.DataSet.State=dsBrowse then
+          DataSource.DataSet.Edit;
+        Coluna.Field.AsInteger := TFUncoes.IIf(Coluna.Field.AsInteger=0,1,0);
+        if not Editavel then
+          DataSource.DataSet.Post;
+      end
+    end;
+end;
+
+procedure TxDBGridZebrado.Paint;
+begin
+
+  if FShowVScrollBar then
+    ShowScrollBar( Handle, SB_VERT, FShowVScrollBar );
+
+  inherited Paint;
+end;
+
+procedure TxDBGridZebrado.SetHighColor(Value: TColor);
+begin
+  if Value <> FHighColor then
+  begin
+    FHighColor := Value;
+    invalidate;
+  end;
+end;
+
+procedure TxDBGridZebrado.SetLowColor(Value: TColor);
+begin
+  if Value <> FLowColor then
+  begin
+    FLowColor := Value;
+    invalidate;
+  end;
+end;
+
+procedure TxDBGridZebrado.SetMultiLinha(const Value: Boolean);
+begin
+  FMultiLinha := Value;
+end;
+
+procedure TxDBGridZebrado.SetPadrao(const Value: boolean);
+begin
+  FPadrao := Value;
+  TDefinePadrao.SetaPadrao( Self, value );
+end;
+
+procedure TxDBGridZebrado.SetShowVScrollBar(const Value: Boolean);
+begin
+  FShowVScrollBar := Value;
+  ShowScrollBar( Handle, SB_VERT, FShowVScrollBar );
+end;
+
+procedure TxDBGridZebrado.Update;
+begin
+  inherited;
+
+  if FShowVScrollBar then
+    ShowScrollBar( Handle, SB_VERT, FShowVScrollBar );
+
+end;
+
+procedure TxDBGridZebrado.SetAlternateColor(Value: Boolean);
+begin
+  if Value <> FAlternateColor then
+  begin
+    FAlternateColor := Value;
+    invalidate;
+  end;
+end;
+
+
+
+procedure TxDBGridZebrado.SetEditavel(const Value: Boolean);
+begin
+  FEditavel := Value;
+  if FEditavel then
+  begin
+    Options := Options - [dgTitles, dgColumnResize, dgColLines, dgRowSelect,
+                            dgTitleClick, dgTitleHotTrack, dgAlwaysShowSelection];
+    Options := Options + [dgTitles, dgColumnResize, dgColLines, dgEditing, dgTabs,
+                            dgTitleClick, dgTitleHotTrack];
+  end
+  else
+  begin
+     if not (csDesigning in ComponentState) then
+     begin
+       Options := OptionsInicial;
+     end;
+   end;
+end;
+
+procedure TxDBGridZebrado.SetFOutrasOpcoes(const Value: TOutrasOpcoes);
+begin
+  FOutrasOpcoes := Value;
+end;
+
+function TxDBGridZebrado.GetOptions: TDBGridOptions;
+begin
+  Result := inherited Options;
+//  if FMultiSelect then Result := Result + [dgMultiSelect]
+ // else Result := Result - [dgMultiSelect];
+end;
+
+procedure TxDBGridZebrado.SetOptions(Value: TDBGridOptions);
+begin
+  inherited Options := Value; // - [dgMultiSelect];
+
+  if not (csDesigning in ComponentState)  then
+  begin
+     If FOptionsInicial=[] then
+     begin
+       FOptionsInicial := Self.Options;
+     end;
+  end;
+end;
+
+end.
+
+ { if (csDesigning in ComponentState) then
+     begin
+        Options := Options - [dgTitles, dgColumnResize, dgColLines, dgEditing, dgTabs,
+                             dgTitleClick, dgTitleHotTrack, dgAlwaysShowSelection];
+        Options := Options + [dgTitles, dgColumnResize, dgColLines, dgRowSelect, dgRowLines,
+                             dgTitleClick, dgTitleHotTrack];
+     end
+     else
+     begin}

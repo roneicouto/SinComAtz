@@ -1,0 +1,401 @@
+unit uXEdit;
+
+interface
+
+uses
+  WinApi.Windows, System.Classes, uXComponentesConstantes, Vcl.StdCtrls,
+  Vcl.Controls, RzEdit, RzBtnEdt, Vcl.Graphics;
+
+type
+  EnumTipoEdit=(teQuantidade, tePreco);
+  // xEdit
+  TxEdit = class(TRzEdit)
+  private
+    FNumerico: boolean;
+    FPadrao: boolean;
+    FCaractereDecimal: AnsiChar;
+    FRequired: boolean;
+    FRequiredDisplay: String;
+    procedure SetPadrao(const Value: boolean);
+    procedure SetCaractereDecimal(const Value: AnsiChar);
+  protected
+    //
+  public
+    constructor Create(AOwner: TComponent); override;
+    procedure KeyPress(var Key: Char); override;
+    /// <summary> Ativa e desativa simultaneamente o ReadOnly e o TabStop </summary>
+    procedure ReadOnlyAndTabStop(pAtiva:boolean);
+    function isNull: boolean;
+  published
+    property Numerico: boolean read FNumerico write FNumerico;
+    property CaractereDecimal: AnsiChar read FCaractereDecimal write SetCaractereDecimal;
+    property Padrao: boolean read FPadrao write SetPadrao;
+    property Required: boolean read FRequired write FRequired  default false;
+    property RequiredDisplay: String read FRequiredDisplay write FRequiredDisplay;
+    property CharCase      default ecUpperCase;
+    property TabOnEnter    ;
+    property ShowHint      ;
+    property ReadOnlyColor ;
+    property FocusColor    ;
+    property Color         default clWhite;
+  end;
+
+  //ButtonEdit
+  TxButtonEdit = class(TRzButtonEdit)
+  private
+    FEnterPressF8: boolean;
+    FNumerico: boolean;
+    FPadrao: boolean;
+    FMultiplaBusca: Boolean;
+    FCaractereDecimal: ansiChar;
+    FRequired: boolean;
+    FRequiredDisplay: String;
+    procedure SetPadrao(const Value: boolean);
+    procedure SetMultiplaBusca(const Value: Boolean);
+    procedure SetNumerico(const Value: boolean);
+    function CorrigeTexto(s: string): string;
+    procedure SetCaractereDecimal(const Value: AnsiChar);
+
+  protected
+
+  public
+    constructor Create(AOwner: TComponent); override;
+    procedure KeyDown( var Key: Word; Shift: TShiftState ); override;
+    procedure KeyPress(var Key: Char); override;
+    procedure ButtonClick; override;
+    procedure DoExit; override;
+    /// <summary> Ativa e desativa simultaneamente o ReadOnly e o TabStop </summary>
+    procedure ReadOnlyAndTabStop(pAtiva:boolean);
+    function isNull: boolean;
+  published
+    property EnterPressF8: boolean read FEnterPressF8 write FEnterPressF8;
+    property Numerico: boolean read FNumerico write SetNumerico;
+    property CaractereDecimal: AnsiChar read FCaractereDecimal write SetCaractereDecimal;
+    property Padrao: boolean read FPadrao write SetPadrao;
+    property MultiplaBusca: Boolean read FMultiplaBusca write SetMultiplaBusca;
+    property Required: boolean read FRequired write FRequired  default false;
+    property RequiredDisplay: String read FRequiredDisplay write FRequiredDisplay;
+    property CharCase      default ecUpperCase;
+    property TabOnEnter      ;
+    property ShowHint        ;
+    property ReadOnlyColor   ;
+    property FocusColor      ;
+    property Color           ;
+    property ButtonShortCut  ;
+    property ButtonKind      ;
+    property OnButtonClick   ;
+    property OnExit   ;
+
+  end;
+
+  //xEditNumerico
+  TxEditNumerico = class(TRzNumericEdit)
+  private
+    FTipoEdit: EnumTipoEdit;
+    FReadOnlyAndTabStop: boolean;
+    FPadrao: boolean;
+    FRequired: boolean;
+    FRequiredDisplay: String;
+    procedure SetPadrao(const Value: boolean);
+
+  protected
+
+  public
+    constructor Create(AOwner: TComponent); override;
+    /// <summary> Ativa e desativa simultaneamente o ReadOnly e o TabStop </summary>
+    procedure ReadOnlyAndTabStop(pAtiva:boolean);
+    function isNull: boolean;
+  published
+    property TipoEdit:EnumTipoEdit read FTipoEdit write FTipoEdit;
+    property Padrao: boolean read FPadrao write SetPadrao;
+    property Required: boolean read FRequired write FRequired   default false;
+    property RequiredDisplay: String read FRequiredDisplay write FRequiredDisplay;
+    property CharCase      ;
+    property TabOnEnter    ;
+    property ShowHint      ;
+    property ReadOnlyColor ;
+    property FocusColor    ;
+    property Color         ;
+  end;
+
+  //Componentes de data
+  TxDateTimeEdit=class(TRzDateTimeEdit)
+  private
+    FPadrao: boolean;
+    FRequired: boolean;
+    FRequiredDisplay: String;
+    procedure SetPadrao(const Value: boolean);
+
+  protected
+
+  public
+    constructor Create(AOwner: TComponent); override;
+    procedure KeyDown( var Key: Word; Shift: TShiftState ); override;
+    /// <summary> Ativa e desativa simultaneamente o ReadOnly e o TabStop </summary>
+    procedure ReadOnlyAndTabStop(pAtiva:boolean);
+    function isNull: boolean;
+
+  published
+    property Padrao: boolean read FPadrao write SetPadrao;
+    property Required: boolean read FRequired write FRequired   default false;
+    property RequiredDisplay: String read FRequiredDisplay write FRequiredDisplay;
+    property CharCase      ;
+    property TabOnEnter    ;
+    property ShowHint      ;
+    property Color         ;
+  end;
+
+
+procedure Register;
+
+implementation
+uses uClasseDefinePadrao, messages, System.SysUtils,
+  Vcl.Dialogs, uClasseFuncoes;
+
+procedure Register;
+begin
+  RegisterComponents('xComponentes', [TxEdit, TxButtonEdit, TxEditNumerico, TxDateTimeEdit]);
+end;
+
+{ TXCompanyBitBtn }
+
+constructor TxEdit.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+//  if (csDesigning in ComponentState) then
+    TDefinePadrao.SetaPadrao(self, True);
+end;
+
+{ TxButtonEdit }
+
+Function TxButtonEdit.CorrigeTexto(s: string): string;
+begin
+  s:= StringReplace(s.Trim,',,',',', [rfReplaceAll]);
+  Result := s;
+  if Copy(s,Length(s),1) = ',' then
+     Result :=  Copy(s,0, Length(s)-1);
+end;
+
+procedure TxButtonEdit.ButtonClick;
+begin
+  inherited ButtonClick;
+  if FMultiplaBusca then
+  begin
+    Text := CorrigeTexto(Text);
+  end;
+  if Trim(Text) <> '' then
+    SelStart := Length(Text);
+end;
+
+constructor TxButtonEdit.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+//  if (csDesigning in ComponentState) then
+    TDefinePadrao.SetaPadrao(self, True);
+end;
+
+procedure TxButtonEdit.DoExit;
+begin
+  inherited DoExit;
+  if FMultiplaBusca then
+  begin
+    Text := CorrigeTexto(Text);
+  end;
+end;
+
+function TxButtonEdit.isNull: boolean;
+begin
+  Exit(Trim(Text)='');
+end;
+
+{ xEditQuantidade }
+constructor TxEditNumerico.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+//  if (csDesigning in ComponentState) then
+    TDefinePadrao.SetaPadrao(self, True);
+end;
+
+procedure TxButtonEdit.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  if FEnterPressF8 and (Key = VK_Return) then
+  begin
+    if Trim(TFuncoes.TiraSimbolos(Text)) = '' then
+    begin
+      try
+        Button.Click;
+      finally
+        if Trim(Text) = '' then
+        if CanFocus then
+          SetFocus
+      end;
+    end;
+  end;
+  inherited;
+end;
+
+procedure TxButtonEdit.KeyPress(var Key: Char);
+begin
+  if FNumerico then
+  begin
+    if not(Key in ['0' .. '9', '-',FCaractereDecimal, #8, #3, #$16, #$D]) then
+    begin
+      Key := #0;
+    end;
+  end
+  else if FMultiplaBusca then
+  begin
+    if not(Key in ['0' .. '9', #8, #3, #$16, ',', #$D]) then
+    begin
+      Key := #0;
+    end;
+    if (Key = ',') then
+    begin
+      if Trim(Text) = '' then
+      begin
+        Key := #0;
+      end
+      else if (Text[1] in ['0' .. '9']) and (SelStart = 0) then
+      begin
+        Key := #0;
+      end
+      else
+      begin
+        if Text[Length(Text)] = ',' then
+        begin
+          Key := #0;
+        end;
+      end;
+    end
+  end;
+  inherited;
+end;
+
+procedure TxButtonEdit.ReadOnlyAndTabStop(pAtiva: boolean);
+begin
+  self.ReadOnly := pAtiva;
+  Self.TabStop  := not pAtiva;
+end;
+
+procedure TxButtonEdit.SetCaractereDecimal(const Value: AnsiChar);
+begin
+  if ( value = ',' ) or (value = '.') then
+   FCaractereDecimal :=  Value;
+end;
+
+procedure TxButtonEdit.SetMultiplaBusca(const Value: Boolean);
+begin
+  FMultiplaBusca := Value;
+  if FMultiplaBusca then
+  begin
+    FNumerico := False;
+  end;
+end;
+
+procedure TxButtonEdit.SetNumerico(const Value: boolean);
+begin
+  FNumerico := Value;
+  if FNumerico then
+  begin
+    FMultiplaBusca := False;
+  end;
+end;
+
+procedure TxButtonEdit.SetPadrao(const Value: boolean);
+begin
+  FPadrao := Value;
+  TDefinePadrao.SetaPadrao(self,value);
+end;
+
+{ TxDateTimeEdit }
+
+constructor TxDateTimeEdit.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  if (csDesigning in ComponentState) then
+    TDefinePadrao.SetaPadrao(self, True);
+end;
+
+function TxDateTimeEdit.isNull: boolean;
+begin
+  Exit(Trim(Text)='');
+end;
+
+procedure TxDateTimeEdit.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  inherited;
+  if key = VK_SPACE then
+  begin
+    keybd_event(VK_MENU, 0, 0, 0);
+    keybd_event(VK_DOWN, 0, 0, 0);
+    keybd_event(VK_DOWN, 0, KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
+  end;
+end;
+
+procedure TxDateTimeEdit.ReadOnlyAndTabStop(pAtiva: boolean);
+begin
+  self.ReadOnly := pAtiva;
+  Self.TabStop  := not pAtiva;
+end;
+
+procedure TxDateTimeEdit.SetPadrao(const Value: boolean);
+begin
+  FPadrao := Value;
+  TDefinePadrao.SetaPadrao(self,value);
+end;
+
+function TxEdit.isNull: boolean;
+begin
+  Exit(Trim(Text)='');
+end;
+
+procedure TxEdit.KeyPress(var Key: Char);
+begin
+  inherited;
+  if FNumerico then
+  if not(Key in ['0' .. '9', '-',FCaractereDecimal,  #8, #3, #$16]) then
+  begin
+    Key := #0;
+  end;
+end;
+
+procedure TxEdit.ReadOnlyAndTabStop(pAtiva: boolean);
+begin
+  self.ReadOnly := pAtiva;
+  Self.TabStop  := not pAtiva;
+end;
+
+procedure TxEdit.SetCaractereDecimal(const Value: AnsiChar);
+begin
+   if ( value = ',' ) or (value = '.') then
+   FCaractereDecimal :=  Value;
+end;
+
+procedure TxEdit.SetPadrao(const Value: boolean);
+begin
+  FPadrao := Value;
+  TDefinePadrao.SetaPadrao(self,value);
+end;
+
+function TxEditNumerico.isNull: boolean;
+begin
+  Exit((Trim(Text) = '') or (Trim(Text) = Trim(DisplayFormat) ));
+end;
+
+procedure TxEditNumerico.ReadOnlyAndTabStop(pAtiva: boolean);
+begin
+  self.ReadOnly := pAtiva;
+  Self.TabStop  := not pAtiva;
+end;
+
+procedure TxEditNumerico.SetPadrao(const Value: boolean);
+begin
+  FPadrao := Value;
+  TDefinePadrao.SetaPadrao(self,value);
+end;
+
+end.
+
+
+

@@ -1,0 +1,898 @@
+unit uFrmAtualizador;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, RzButton, uXCompanyBotoes, Vcl.StdCtrls,
+  Vcl.Mask, RzEdit, RzBtnEdt, uXEdit, Xml.xmldom, Data.DB, Datasnap.DBClient,
+  Datasnap.Provider, Xmlxform, uDmAtualizador, uDmImagens, uClasseFuncoes,
+  uClasseXQuery, System.zip, FileCtrl, Vcl.Grids, Vcl.DBGrids, Vcl.DBCtrls,
+  RzDBEdit, uFrmAguarde, uFrmConfiguraAcessoBD, Vcl.Samples.Spin,
+  System.IniFiles, uConexaoBanco, Vcl.ExtCtrls, uFrmRelatorioAtualizacao;
+
+const
+  SELDIRHELP = 1000;
+
+type
+  TfrmAtualizador = class(TForm)
+    Label1: TLabel;
+    edtArquivo: TxButtonEdit;
+    btnProcessar: TxBtnCoringa;
+    xBtnCoringa1: TxBtnCoringa;
+    XMLProviderObjetos: TXMLTransformProvider;
+    cdsObjetos: TClientDataSet;
+    cdsObjetostipo: TStringField;
+    cdsObjetosnome: TStringField;
+    cdsObjetosdefinicao: TWideMemoField;
+    dsObjeto: TDataSource;
+    cdsTabela: TClientDataSet;
+    cdsTabelascript_create: TWideMemoField;
+    cdsCatalogo: TClientDataSet;
+    cdsTabelas: TClientDataSet;
+    cdsTabelastipo: TStringField;
+    cdsTabelasnome: TStringField;
+    cdsTabelasdefinicao: TWideMemoField;
+    cdsTabelasindices: TWideMemoField;
+    cdsTabelasconstraints: TWideMemoField;
+    cdsConstraints: TClientDataSet;
+    cdsConstraintstipo: TWideMemoField;
+    cdsConstraintsnome: TWideMemoField;
+    cdsConstraintstabela: TWideMemoField;
+    cdsConstraintstabelaestrangeira: TWideMemoField;
+    cdsConstraintscoluna: TWideMemoField;
+    cdsConstraintscolunaestrangeira: TWideMemoField;
+    cdsConstraintsacaoupdate: TWideMemoField;
+    cdsConstraintsacaodelete: TWideMemoField;
+    cdsTriggers: TClientDataSet;
+    OpenDialog1: TOpenDialog;
+    dsTabelas: TDataSource;
+    dsRestante: TDataSource;
+    cdsRestante: TClientDataSet;
+    StringField1: TStringField;
+    StringField2: TStringField;
+    WideMemoField1: TWideMemoField;
+    cdsCatalogoid: TIntegerField;
+    cdsCatalogoschema: TWideStringField;
+    cdsCatalogonome: TWideMemoField;
+    cdsCatalogotipo: TWideMemoField;
+    cdsCatalogotipodesincronismodedados: TIntegerField;
+    cdsCatalogotamanho: TWideStringField;
+    cdsCatalogoscopo: TWideMemoField;
+    LbIPServi: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    edtUsuario: TxEdit;
+    edtBanco: TxEdit;
+    edtSenha: TMaskEdit;
+    edtHost: TxEdit;
+    edtPorta: TSpinEdit;
+    BtnTestaConexao: TxBtnCoringa;
+    cdsTabelasprimarykey: TWideMemoField;
+    cdsConteudo: TClientDataSet;
+    cdsConteudoAtualizado: TClientDataSet;
+    xBtnCoringa2: TxBtnCoringa;
+    chkSincroniza: TCheckBox;
+    procedure FormShow(Sender: TObject);
+    procedure btnProcessarClick(Sender: TObject);
+    procedure xBtnCoringa1Click(Sender: TObject);
+    procedure BtnTestaConexaoClick(Sender: TObject);
+    procedure xBtnCoringa2Click(Sender: TObject);
+  private
+    { Private declarations }
+    ZipFile: TZipFile;
+    SqlPesquisaObejeto: string;
+    IniConfig: TIniFile;
+    function Conectar(): Boolean;
+    procedure AdicionaErroNoRelatorio(msg: string);
+    function LocalizaConteudo(pTabela: String): Boolean;
+    function PegaChave(pTabela: string; carac: string): string;
+    function AtualizaConteudo: Boolean;
+  public
+    { Public declarations }
+  end;
+
+var
+  frmAtualizador: TfrmAtualizador;
+
+implementation
+
+{$R *.dfm}
+
+procedure TfrmAtualizador.AdicionaErroNoRelatorio(msg: string);
+begin
+  if msg <> '' then
+    frmRelatorioAtualizacao.mensagem.Lines.Add(msg);
+
+end;
+
+Function TfrmAtualizador.AtualizaConteudo: Boolean;
+var
+  param: string;
+  i, y: Integer;
+  ret: String;
+begin
+  try
+
+    if not chkSincroniza.Checked then
+      Exit(True);
+
+    cdsCatalogo.Close;
+    cdsCatalogo.Open;
+    cdsCatalogo.First;
+
+    while not cdsCatalogo.Eof do
+    begin
+      if (cdsCatalogotipo.value = 'Table') and
+        (StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) in [1, 2])
+      then
+      begin
+        if StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) = 1 then
+           tfuncoes.ExecSql(Ret, String( 'delete from ' + cdsCatalogonome.value));
+
+        param := PegaChave(cdsCatalogonome.value, '');
+        if (param <> '') or (StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) = 1)  then
+        begin
+
+          frmAguarde.Informacao := 'AGUARDE: Sincronizando conteúdo da tabela ('
+            + cdsCatalogonome.value + ')';
+          Application.ProcessMessages;
+          cdsConteudoAtualizado.LoadFromFile(cdsCatalogonome.value +
+            '.conteudo');
+          cdsConteudo.CommandText := 'select * from ' + cdsCatalogonome.value +
+            ' where (' + param + ')=(' + PegaChave(cdsCatalogonome.value,
+            ':') + ')';
+
+          // cdsConteudo.FetchParams;
+
+         if  StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) = 1 Then
+         begin
+             cdsConteudo.CommandText := 'select * from ' + cdsCatalogonome.value +
+            ' where 1=2 ';
+              cdsConteudo.Close;
+            cdsConteudo.Open;
+         end;
+          cdsConteudoAtualizado.First;
+          while not cdsConteudoAtualizado.Eof do
+          begin
+            for i := 0 to cdsConteudo.Params.Count - 1 do
+            begin
+              cdsConteudo.Params[i].value := cdsConteudoAtualizado.FieldByName
+                (cdsConteudo.Params[i].Name).value;
+
+            end;
+             if StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) <> 1 then
+            begin
+            cdsConteudo.Close;
+            cdsConteudo.Open;
+            if cdsConteudo.IsEmpty then
+               cdsConteudo.Append
+            else
+            begin
+                cdsConteudo.Edit;
+            end;
+            end
+            else
+               cdsConteudo.Append;
+            for y := 0 to cdsConteudoAtualizado.FieldCount - 1 do
+            begin
+              cdsConteudo.FieldByName(cdsConteudo.Fields[y].FieldName).value :=
+                cdsConteudoAtualizado.FieldByName
+                (cdsConteudo.Fields[y].FieldName).value;
+            end;
+            cdsConteudo.Post;
+            if StrToIntDef(cdsCatalogotipodesincronismodedados.AsString, 0) <> 1 then
+            cdsConteudo.ApplyUpdates(0);
+            Application.ProcessMessages;
+            cdsConteudoAtualizado.Next;
+          end;
+          cdsConteudo.ApplyUpdates(0);
+        end;
+      end;
+      cdsCatalogo.Next;
+
+    end;
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      tfuncoes.mensagem('Problema ao sincronizar o conteúdo da tabela' +
+        cdsCatalogonome.value, mtError, E.Message);
+      Result := False;
+    end;
+  end;
+end;
+
+procedure TfrmAtualizador.btnProcessarClick(Sender: TObject);
+var
+  Query: TXQuery;
+  restant: Integer;
+  msg: string;
+  str: TStringList;
+  param: string;
+  i: Integer;
+
+begin
+  try
+    if not tfuncoes.Confirma
+      ('Esta rotina pode comprometer seriamente a base de dados. Recomendamos fazer um backup antes de começar e não haver nenhum usuário logado no sistema. Tem certeza que deseja continuar?')
+    Then
+      Exit;
+    frmRelatorioAtualizacao := TfrmRelatorioAtualizacao.Create(Self);
+
+    if not FileExists(edtArquivo.Text) then
+    begin
+      tfuncoes.mensagem('O arquivo de atualização não existe!');
+      Exit;
+    end;
+
+    frmAguarde.Abrir('AGUARDE: Conectando ao banco de dados', Self,
+      Height, Width);
+    if not Conectar then
+    begin
+      tfuncoes.mensagem('Não foi possível conectar ao servidor especificado');
+      frmAguarde.Fechar;
+      Exit;
+    end;
+
+    IniConfig.WriteString('Conexao', 'IP Servidor', edtHost.Text);
+    IniConfig.WriteString('Conexao', 'Nome Banco', edtBanco.Text);
+    IniConfig.WriteString('Conexao', 'Usuario Banco', edtUsuario.Text);
+    IniConfig.WriteString('Conexao', 'Senha Banco', edtSenha.Text);
+    IniConfig.WriteInteger('Conexao', 'Porta Servidor', edtPorta.value);
+
+    frmAguarde.Informacao := 'AGUARDE: Extraindo arquivos para atualização';
+    Application.ProcessMessages;
+    // AtualizaConteudo;
+    ZipFile := TZipFile.Create;
+    ZipFile.Open(edtArquivo.Text, zmRead);
+    ZipFile.ExtractAll(extractfilepath(Application.exename));
+
+    FreeAndNil(ZipFile);
+    Query := TXQuery.Create(nil);
+    Query := tfuncoes.CriaQuery('select * from pg_namespace where nspname = ' +
+      QuotedStr('atualizacao'));
+    if not Query.IsEmpty then
+      tfuncoes.ExecSql(msg, 'drop schema atualizacao cascade');
+    AdicionaErroNoRelatorio(msg);
+
+    tfuncoes.ExecSql(msg, 'create schema atualizacao ');
+    AdicionaErroNoRelatorio(msg);
+    cdsObjetos.Close;
+    cdsObjetos.Open;
+    cdsTabelas.Close;
+    cdsTabelas.Open;
+    // Criar as tabelas no esquema de atualizacao
+
+    if not cdsTabelas.IsEmpty then
+    begin
+      while not cdsTabelas.Eof do
+      begin
+        frmAguarde.Informacao :=
+          'AGUARDE: Criando tabelas no schema de atualização ';
+        Application.ProcessMessages;
+        if tfuncoes.ExecSql(msg, cdsTabelasdefinicao.value) = -1 then
+        begin
+          tfuncoes.mensagem
+            ('Problema ao criar tabelas no schema de atualização ( ' +
+            cdsTabelasnome.value + ' )');
+
+        end;
+        cdsTabelas.Next;
+      end;
+    end;
+    // delete todos objetos do schema a ser atualizado
+    if 1 = 1 then
+    begin
+      cdsObjetos.First;
+      while not cdsObjetos.Eof do
+      begin
+        if (cdsObjetostipo.value <> 'Sequence') and
+          (cdsObjetostipo.value <> 'Table') then
+        begin
+
+          frmAguarde.Informacao :=
+            'AGUARDE: Excluindo Objetos relacionados com as tabelas ';
+          Application.ProcessMessages;
+          try
+            if (cdsObjetostipo.value = 'Function') and
+              (cdsObjetosnome.AsString.IndexOf('(') = -1) then
+
+            begin
+              tfuncoes.ExecSql(msg, 'drop ' + cdsObjetostipo.value + ' ' +
+                cdsObjetosnome.value + '() cascade ');
+
+            end
+            else
+            begin
+              tfuncoes.ExecSql(msg, 'drop ' + cdsObjetostipo.value + ' ' +
+                cdsObjetosnome.value + ' cascade ')
+            end;
+
+          except
+            on E: Exception do
+          end;
+
+        end;
+        cdsObjetos.Next;
+      end;
+
+    end;
+    // insere alguns objetos
+    cdsObjetos.First;
+    cdsRestante.Close;
+    cdsRestante.CreateDataSet;
+    try
+      while not cdsObjetos.Eof do
+      begin
+        if (cdsObjetosnome.AsString.IndexOf('script_create') <> -1) or
+          (cdsObjetosnome.AsString.IndexOf('compara_estrutura') <> -1) or
+          (cdsObjetosnome.AsString.IndexOf('atualiza_sequencia') <> -1) or
+          (cdsObjetosnome.AsString.IndexOf('atributos_colunas') <> -1) or
+          (cdsObjetosnome.AsString.IndexOf('vs_constraint') <> -1) or
+          (cdsObjetosnome.AsString.IndexOf('vs_indexes') <> -1) then
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Inserindo objetos no Schema public ';
+          Application.ProcessMessages;
+
+          if tfuncoes.ExecSql(msg, cdsObjetosdefinicao.value, True) = -1 then
+          begin
+            AdicionaErroNoRelatorio(msg);
+            cdsRestante.Append;
+            cdsRestante.FieldByName('nome').value := cdsObjetosnome.value;
+            cdsRestante.FieldByName('tipo').value := cdsObjetostipo.value;
+            cdsRestante.FieldByName('definicao').value :=
+              cdsObjetosdefinicao.value;
+            cdsRestante.Post;
+            Application.ProcessMessages;
+
+          end;
+        end;
+        cdsObjetos.Next;
+      end;
+
+    finally
+
+    end;
+
+    // excluindo as chaves estrangeiras
+    cdsTabelas.First;
+    if not cdsTabelas.IsEmpty then
+    begin
+      while not cdsTabelas.Eof do
+      begin
+        frmAguarde.Informacao := 'AGUARDE: Excluindo Foreign Key';
+        Application.ProcessMessages;
+        Query := TXQuery.Create(nil);
+        Query := tfuncoes.CriaQuery
+          ('select * from vs_constraint where table_name = ' +
+          QuotedStr(cdsTabelasnome.value) + ' and constraint_type IN (' +
+          QuotedStr('FOREIGN KEY') + ',' + QuotedStr('UNIQUE') + ')');
+        if not Query.IsEmpty then
+        begin
+          while not Query.Eof do
+          begin
+            tfuncoes.ExecSql(msg, 'alter table ' + cdsTabelasnome.value +
+              ' DROP CONSTRAINT ' + Query.FieldByName('conname').value);
+            Query.Next;
+          end;
+        end;
+        cdsTabelas.Next;
+      end;
+
+    end;
+
+    // excluindo as chaves primarias
+    cdsTabelas.First;
+    if not cdsTabelas.IsEmpty then
+    begin
+      while not cdsTabelas.Eof do
+      begin
+        frmAguarde.Informacao := 'AGUARDE: Excluindo Primary Key';
+        Application.ProcessMessages;
+        Query := TXQuery.Create(nil);
+        Query := tfuncoes.CriaQuery
+          ('select * from vs_constraint where table_name = ' +
+          QuotedStr(cdsTabelasnome.value) + ' and constraint_type = ' +
+          QuotedStr('PRIMARY KEY'));
+        if not Query.IsEmpty then
+        begin
+          while not Query.Eof do
+          begin
+            tfuncoes.ExecSql(msg, 'alter table ' + cdsTabelasnome.value +
+              ' DROP CONSTRAINT ' + Query.FieldByName('conname').value);
+            Query.Next;
+          end;
+        end;
+        cdsTabelas.Next;
+      end;
+
+    end;
+
+    // excluindo os indices
+    cdsTabelas.First;
+    if not cdsTabelas.IsEmpty then
+    begin
+      while not cdsTabelas.Eof do
+      begin
+        frmAguarde.Informacao := 'AGUARDE: Excluindo Indexes';
+        Application.ProcessMessages;
+        // excluindo todos os indices
+        Query := TXQuery.Create(nil);
+        Query := tfuncoes.CriaQuery('select * from vs_indexes  where tabela =  '
+          + QuotedStr(cdsTabelasnome.value));
+        if not Query.IsEmpty then
+        begin
+          while not Query.Eof do
+          begin
+            tfuncoes.ExecSql(msg, 'drop index  ' +
+              Query.FieldByName('table_name').value);
+            Query.Next;
+          end;
+        end;
+        cdsTabelas.Next;
+      end;
+
+    end;
+
+    // Criar as sequencias que nao existir  no esquema public
+
+    if not cdsObjetos.IsEmpty then
+    begin
+      cdsObjetos.First;
+      while not cdsObjetos.Eof do
+      begin
+        if cdsObjetostipo.value = 'Sequence' then
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Criando seguências que não existir ';
+          Application.ProcessMessages;
+
+          if tfuncoes.CriaQuery('Select * from (' + SqlPesquisaObejeto +
+            ') as objetos where lower(name)=' +
+            QuotedStr(LowerCase(cdsObjetosnome.AsString)) + ' and schema =' +
+            QuotedStr('public') + ' and type = ' + QuotedStr('sequence')).IsEmpty
+          then
+          begin
+
+            if tfuncoes.ExecSql(msg, cdsObjetosdefinicao.value) = -1 then
+            begin
+
+              AdicionaErroNoRelatorio(msg);
+
+            end;
+          end;
+        end;
+
+        cdsObjetos.Next;
+      end;
+    end;
+
+    // sincronizando as tabelas do esquema de atualizacao com o schema public
+    cdsTabelas.First;
+    if not cdsTabelas.IsEmpty then
+    begin
+      while not cdsTabelas.Eof do
+      begin
+        frmAguarde.Informacao := 'AGUARDE: Atualizando a estrutura das tabelas';
+        Application.ProcessMessages;
+
+        Query := TXQuery.Create(nil);
+        Query := tfuncoes.CriaQuery(' select compara_estrutura(' +
+          QuotedStr('atualizacao') + '::bpchar,' +
+          QuotedStr(cdsTabelasnome.value) + '::bpchar,' + QuotedStr('public') +
+          '::bpchar,' + QuotedStr(cdsTabelasnome.value) + '::bpchar)');
+
+        if not Query.IsEmpty then
+        begin
+          if Query.FieldByName('compara_estrutura').AsString <> '' then
+          begin
+            if Query.FieldByName('compara_estrutura').AsString.IndexOf(';') <> -1
+            then
+            begin
+              str := TStringList.Create;
+              str.Clear;
+              ExtractStrings([';'], [],
+                PChar(Query.FieldByName('compara_estrutura').AsString), str);
+              frmRelatorioAtualizacao.mensagem.Lines.Add
+                (Query.FieldByName('compara_estrutura').AsString);
+
+              if not tfuncoes.ExecSql(str) Then
+
+              begin
+                frmAguarde.Fechar;
+                param := '';
+                for i := 0 to str.Count - 1 do
+                  param := param + str[i] + ';';
+                tfuncoes.mensagem
+                  ('Problema ao sincronizar a estrutura da tabela ' +
+                  cdsTabelasnome.value, mtError, str[0]);
+                Exit;
+
+              end;
+            end
+            else
+            begin
+
+              if (tfuncoes.ExecSql(msg, Query.FieldByName('compara_estrutura')
+                .AsString) = -1) Then
+
+              begin
+                frmAguarde.Fechar;
+                tfuncoes.mensagem
+                  ('Problema ao sincronizar a estrutura da tabela ' +
+                  cdsTabelasnome.value, mtError, msg);
+                Exit;
+
+              end;
+
+            end;
+          end;
+        end;
+        cdsTabelas.Next;
+      end;
+    end;
+
+    // insere todos objetos no esquema public
+    cdsObjetos.First;
+    cdsRestante.Close;
+    cdsRestante.CreateDataSet;
+    try
+      while not cdsObjetos.Eof do
+      begin
+        if (cdsObjetostipo.value <> 'Sequence') and
+          (cdsObjetosnome.AsString.IndexOf('script_create') = -1) and
+          (cdsObjetosnome.AsString.IndexOf('compara_estrutura') = -1) and
+          (cdsObjetosnome.AsString.IndexOf('atualiza_sequencia') = -1) and
+          (cdsObjetosnome.AsString.IndexOf('atributos_colunas') = -1) and
+          (cdsObjetosnome.AsString.IndexOf('vs_constraint') = -1) and
+          (cdsObjetosnome.AsString.IndexOf('vs_indexes') = -1) then
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Inserindo Objetos excluidos anteriormente ';
+          Application.ProcessMessages;
+
+          if tfuncoes.ExecSql(msg, cdsObjetosdefinicao.value, True) = -1 then
+          begin
+
+            cdsRestante.Append;
+            cdsRestante.FieldByName('nome').value := cdsObjetosnome.value;
+            cdsRestante.FieldByName('tipo').value := cdsObjetostipo.value;
+            cdsRestante.FieldByName('definicao').value :=
+              cdsObjetosdefinicao.value;
+            cdsRestante.Post;
+            Application.ProcessMessages;
+
+          end;
+        end;
+        cdsObjetos.Next;
+      end;
+      while not cdsRestante.IsEmpty do
+      begin
+        cdsRestante.First;
+        while not cdsRestante.Eof do
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Inserindo objetos excluidos anteriormente ';
+          Application.ProcessMessages;
+
+          if tfuncoes.ExecSql(msg, cdsRestante.FieldByName('definicao').value,
+            True) = 0 then
+          begin
+            cdsRestante.Delete;
+          end
+          else
+          begin
+            // TFuncoes.Mensagem(msg);
+            if restant > 2900 then
+              AdicionaErroNoRelatorio(msg);
+
+            cdsRestante.Next;
+          end;
+          Application.ProcessMessages;
+          restant := restant + 1;
+          if restant > 3000 then
+          begin
+            frmRelatorioAtualizacao.ShowModal;
+            tfuncoes.mensagem('Problema ao criar o objeto no schema public. ' +
+              cdsRestante.FieldByName('nome').value, mtError,
+              cdsRestante.FieldByName('definicao').value);
+            frmAguarde.Fechar;
+            Exit;
+          end;
+
+        end;
+
+      end;
+      // Criar as primary keys  das tabelas
+      cdsTabelas.First;
+      if not cdsTabelas.IsEmpty then
+      begin
+        while not cdsTabelas.Eof do
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Criando as Primary Key das tabelas ';
+          Application.ProcessMessages;
+          // adiciona as constraints
+
+          str := TStringList.Create;
+          str.Clear;
+          ExtractStrings([';'], [], PChar(cdsTabelasprimarykey.AsString), str);
+          if not tfuncoes.ExecSql(str) then
+          begin
+            // TFuncoes.mensagem('Problema ao criar as constraints  da tabela  ' +
+            // cdsTabelasnome.value, mtError, str[0]);
+            // frmAguarde.Fechar;
+            // Exit;
+          end;
+
+          cdsTabelas.Next;
+        end;
+      end;
+       // Criar as constraints e indices das tabelas
+      cdsTabelas.First;
+      if not cdsTabelas.IsEmpty then
+      begin
+        while not cdsTabelas.Eof do
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Criando  Indexes das tabelas ';
+          Application.ProcessMessages;
+
+
+          // adiciona os indices
+
+          str := TStringList.Create;
+          str.Clear;
+          ExtractStrings([';'], [], PChar(cdsTabelasindices.AsString), str);
+          if not tfuncoes.ExecSql(str) then
+          begin
+            // TFuncoes.mensagem('Problema ao criar os indices da tabela  ' +
+            // cdsTabelasnome.value);
+            // frmAguarde.Fechar;
+            // Exit;
+
+          end;
+          cdsTabelas.Next;
+        end;
+      end;
+
+      AtualizaConteudo;
+      // Criar as constraints e indices das tabelas
+      cdsTabelas.First;
+      if not cdsTabelas.IsEmpty then
+      begin
+        while not cdsTabelas.Eof do
+        begin
+          frmAguarde.Informacao :=
+            'AGUARDE: Criando Constraints das tabelas ';
+          Application.ProcessMessages;
+          // adiciona as constraints
+
+          str := TStringList.Create;
+          str.Clear;
+          ExtractStrings([';'], [], PChar(cdsTabelasconstraints.AsString), str);
+          if not tfuncoes.ExecSql(str) then
+          begin
+            // TFuncoes.mensagem('Problema ao criar as constraints  da tabela  ' +
+            // cdsTabelasnome.value, mtError, str[0]);
+            // frmAguarde.Fechar;
+            // Exit;
+          end;
+
+
+          cdsTabelas.Next;
+        end;
+      end;
+      // atualiza as sequencias atuais
+      cdsTabelas.First;
+      if not cdsTabelas.IsEmpty then
+      begin
+        while not cdsTabelas.Eof do
+        begin
+          frmAguarde.Informacao := 'AGUARDE: Atualizando as sequências ';
+          Application.ProcessMessages;
+
+          if not tfuncoes.ExecSql(msg, 'select atualiza_sequencia(' +
+            QuotedStr(cdsTabelasnome.AsString) + ',' + QuotedStr('public')) = -1
+          then
+          begin
+            tfuncoes.mensagem('Problema ao criar as sequências da tabela  ' +
+              cdsTabelasnome.value, mtError, msg);
+            frmAguarde.Fechar;
+            Exit;
+          end;
+
+          cdsTabelas.Next;
+        end;
+      end;
+
+
+
+      // criando as triggers
+
+      if FileExists('trigger.catalogo') then
+      begin
+        cdsTriggers.LoadFromFile('trigger.catalogo');
+        if not cdsTriggers.IsEmpty then
+        begin
+          while not cdsTriggers.Eof do
+          begin
+            frmAguarde.Informacao :=
+              'AGUARDE: Criando as trigger das tabelas e visões ';
+            Application.ProcessMessages;
+            if tfuncoes.ExecSql(msg, cdsTriggers.FieldByName('trigger_def')
+              .AsString) = -1 then
+            begin
+              tfuncoes.mensagem('Problema ao criar Trigger', mtError, msg);
+              frmAguarde.Fechar;
+              Exit;
+            end;
+
+            cdsTriggers.Next;
+          end;
+
+        end;
+      end;
+
+      // Sincronizar conteudo das tabelas de conteudo fixo
+   //   if AtualizaConteudo then
+  //    begin
+        frmAguarde.Fechar;
+        tfuncoes.mensagem('Atualização concluida com sucesso!');
+        // frmRelatorioAtualizacao.ShowModal;
+  //    end
+   //   else
+   //     frmAguarde.Fechar;
+
+    except
+      on E: Exception do
+      begin
+        tfuncoes.mensagem('Problema na atualização do banco de dados!', mtError,
+          E.Message);
+        FreeAndNil(ZipFile)
+
+      end;
+    end;
+  finally
+    FreeAndNil(ZipFile);
+
+  end;
+
+end;
+
+procedure TfrmAtualizador.BtnTestaConexaoClick(Sender: TObject);
+begin
+  if Conectar then
+    tfuncoes.mensagem('Conexão com sucesso!')
+  else
+    tfuncoes.mensagem('Conexão falhou! verifique as configurações.')
+
+end;
+
+function TfrmAtualizador.Conectar: Boolean;
+begin
+
+  Try
+
+    dmAtualizador.DbConexao.Close;
+    dmAtualizador.DbConexao.Params.Values['hostname'] := edtHost.Text + ':' +
+      edtPorta.Text;
+    dmAtualizador.DbConexao.Params.Values['Database'] := edtBanco.Text;
+    dmAtualizador.DbConexao.Params.Values['User_Name'] := edtUsuario.Text;
+    dmAtualizador.DbConexao.Params.Values['Password'] := edtSenha.Text;
+    dmAtualizador.DbConexao.Params.Values['Port'] := edtPorta.Text;
+
+    try
+      if not dmAtualizador.DbConexao.Connected then
+        dmAtualizador.DbConexao.Connected := True;
+
+      Result := dmAtualizador.DbConexao.Connected;
+    Except
+      On E: Exception do
+      begin
+        Result := False;
+        showmessage('Erro ao conectar ao banco de dados.' + #13#13 + E.Message);
+
+      end;
+    end;
+  Finally
+
+  End;
+end;
+
+procedure TfrmAtualizador.FormShow(Sender: TObject);
+
+begin
+
+  IniConfig := TIniFile.Create(extractfilepath(Application.exename) +
+    'atualizador.ini');
+  edtHost.Text := IniConfig.ReadString('Conexao', 'IP Servidor', 'localhost');
+  edtBanco.Text := IniConfig.ReadString('Conexao', 'Nome Banco', 'xcompany');
+  edtUsuario.Text := IniConfig.ReadString('Conexao', 'Usuario Banco',
+    'postgres');
+  edtSenha.Text := IniConfig.ReadString('Conexao', 'Senha Banco', 'admin');
+  edtPorta.value := IniConfig.ReadInteger('Conexao', 'Porta Servidor', 5432);
+
+  cdsObjetos.Close;
+  cdsObjetos.CreateDataSet;
+  edtArquivo.Text := extractfilepath(Application.exename) +
+    'arquivo_atualizacao_banco.zip';
+
+  SqlPesquisaObejeto := ' SELECT  n.nspname as schema,  c.relname as name, ' +
+    '  CASE c.relkind WHEN ' + QuotedStr('r') + '  THEN ' + QuotedStr('table') +
+    ' WHEN ' + QuotedStr('v') + ' THEN ' + QuotedStr('view') + ' WHEN ' +
+    QuotedStr('i') + ' ' + ' THEN ' + QuotedStr('index') + ' WHEN ' +
+    QuotedStr('S') + ' THEN ' + QuotedStr('sequence') + ' WHEN ' +
+    QuotedStr('s') + ' THEN ' + QuotedStr('special') + ' END as type ' +
+    ' FROM pg_catalog.pg_class c   ' +
+    '     LEFT JOIN pg_catalog.pg_user u ON u.usesysid = c.relowner ' +
+    '     LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace ' +
+    ' WHERE  n.nspname NOT IN (' + QuotedStr('pg_catalog') + ', ' +
+    QuotedStr('pg_toast') + ') ' + '  ORDER BY 1,2 ';
+
+end;
+
+function TfrmAtualizador.LocalizaConteudo(pTabela: String): Boolean;
+var
+  Query: TXQuery;
+begin
+  Query := TXQuery.Create(nil);
+  try
+    Query := tfuncoes.CriaQuery
+      ('SELECT a.attname AS chave_pk FROM pg_class c  INNER JOIN pg_attribute a ON (c.oid = a.attrelid)  INNER JOIN pg_index i ON (c.oid = i.indrelid) WHERE   a.attnum =  any ( i.indkey)  AND i.indisprimary and c.relname = '
+      + pTabela);
+    if Query.IsEmpty then
+    begin
+      tfuncoes.mensagem('a tabela ' + pTabela +
+        ' não tem chave primaria. Entao todos registros seram inseridos ');
+      Exit(False)
+
+    end;
+
+  finally
+    FreeAndNil(Query);
+  end;
+
+end;
+
+function TfrmAtualizador.PegaChave(pTabela, carac: string): string;
+var
+  Query: TXQuery;
+begin
+  Query := TXQuery.Create(nil);
+  try
+    Query := tfuncoes.CriaQuery('SELECT string_agg( ' + QuotedStr(carac) +
+      ' || a.attname,' + QuotedStr(',') +
+      ') AS chave_pk FROM pg_class c  INNER JOIN pg_attribute a ON (c.oid = a.attrelid)  INNER JOIN pg_index i ON (c.oid = i.indrelid) WHERE   a.attnum =  any ( i.indkey)  AND i.indisprimary and c.relname = '
+      + QuotedStr(pTabela));
+    if Query.IsEmpty then
+    begin
+      tfuncoes.mensagem('a tabela ' + pTabela +
+        ' não tem chave primaria. Impossível sincronizar os dados ');
+      Result := '';
+    end
+    else
+      Result := Query.FieldByName('chave_pk').value;
+
+  finally
+    FreeAndNil(Query);
+  end;
+
+end;
+
+procedure TfrmAtualizador.xBtnCoringa1Click(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TfrmAtualizador.xBtnCoringa2Click(Sender: TObject);
+begin
+  frmRelatorioAtualizacao.ShowModal;
+end;
+
+end.

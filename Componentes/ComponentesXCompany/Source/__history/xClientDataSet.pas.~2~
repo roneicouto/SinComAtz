@@ -1,0 +1,51 @@
+unit xClientDataSet;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Data.DB, Datasnap.DBClient;
+
+type
+  TPermissaoCampo = (cfgEditar, cfgMaximo, cfgMinimo, cfgValorPadrao, cfgExibirConteudo);
+  TPermissoesCampo = set of TPermissaoCampo;
+
+  TXField = class helper for TField
+  private
+    function GetPermiteConfigurar: TPermissoesCampo;
+    procedure SetPermiteConfigurar(const Value: TPermissoesCampo);
+    { Private declarations }
+  protected
+    { Protected declarations }
+  public
+    { Public declarations }
+  published
+    { Published declarations }
+    property PermiteConfigurar:TPermissoesCampo read GetPermiteConfigurar write SetPermiteConfigurar;
+//    property ConfigurarEdicao:boolean read GetPermiteConfigurar write SetPermiteConfigurar;
+
+  end;
+
+procedure Register;
+
+implementation
+
+{ TXField }
+
+procedure Register;
+begin
+  RegisterComponents('xComponentes', [TxDBGridZebrado]);
+end;
+
+function TXField.GetPermiteConfigurar: TPermissoesCampo;
+begin
+  //
+end;
+
+procedure TXField.SetPermiteConfigurar(const Value: TPermissoesCampo);
+begin
+  //
+end;
+
+{ TXField }
+
+end.

@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2014/07/28 17:39:24.000.928,=rtl.dcp</Transaction>
+    <Transaction>2014/07/28 17:40:08.000.698,=D:\Desenvolvimento\xCompany\Pacotes\ComponentesXCompane\Source\uXPanel.pas</Transaction>
+    <Transaction>2014/07/28 17:40:26.000.266,C:\Users\Josenilson\Documents\RAD Studio\Projects\Package1.dproj=D:\Desenvolvimento\xCompany\Pacotes\ComponentesXCompane\Source\xpanelpacote_teste.dproj</Transaction>
+    <Transaction>2014/07/28 17:40:49.000.309,D:\Desenvolvimento\xCompany\Pacotes\ComponentesXCompane\Source\uXPanel.pas=</Transaction>
+    <Transaction>2014/07/28 17:40:57.000.435,=D:\Desenvolvimento\xCompany\Pacotes\ComponentesXCompane\Source\Unit1.pas</Transaction>
+    <Transaction>2014/07/28 17:41:13.000.212,D:\Desenvolvimento\xCompany\Pacotes\ComponentesXCompane\Source\Unit1.pas=C:\Temp\uComponenteRoberto.pas</Transaction>
+  </Transactions>
+</BorlandProject>

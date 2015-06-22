@@ -1,0 +1,70 @@
+package XCompanyComponentes;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  vcl,
+  dbrtl,
+  vcldb,
+  bdertl,
+  RaizeComponentsVcl,
+  RaizeComponentsVclDb,
+  vclimg,
+  designide,
+  tmsdXE4,
+  dsnap;
+
+contains
+  uXCompanyBotoes in 'Source\uXCompanyBotoes.pas',
+  uXEdit in 'Source\uXEdit.pas',
+  uXDbEdit in 'Source\uXDbEdit.pas',
+  uXDBGridZebrado in 'Source\uXDBGridZebrado.pas',
+  abfiltrogrid in 'Source\abfiltro\abfiltrogrid.pas',
+  abfiltrogridsql in 'Source\abfiltro\abfiltrogridsql.pas',
+  formabfiltro in 'Source\abfiltro\formabfiltro.pas' {FrmABFiltro},
+  formabfiltrosql in 'Source\abfiltro\formabfiltrosql.pas' {FrmABFiltroSQl},
+  dbgrid3d in 'Source\dbgridcheckbox\dbgrid3d.pas',
+  uXComponentesConstantes in 'Source\uXComponentesConstantes.pas',
+  uXPanel in 'Source\uXPanel.pas',
+  uXComboBox in 'Source\uXComboBox.pas',
+  uClasseDefinePadrao in 'Source\uClasseDefinePadrao.pas',
+  uXPageControl in 'Source\uXPageControl.pas',
+  uXDbText in 'Source\uXDbText.pas',
+  uxShape in 'Source\uxShape.pas',
+  uClasseFuncoes in 'Source\uClasseFuncoes.pas',
+  uXeButtonGroup in 'Source\uXeButtonGroup.pas',
+  uxParametrizacao in 'Source\uxParametrizacao.pas',
+  uFormEditorParametros in 'Source\uFormEditorParametros.pas' {frmEditorParametros},
+  uxParametrizacaoEditor in 'Source\uxParametrizacaoEditor.pas',
+  uClasseParametros in 'Source\uClasseParametros.pas',
+  uFrmDigitaParametro in 'Source\uFrmDigitaParametro.pas' {frmDigitaParametro},
+  uFrmLocalizarParametro in 'Source\uFrmLocalizarParametro.pas' {frmLocalizaParametro},
+  uXAjuda in 'Source\uXAjuda.pas';
+
+end.

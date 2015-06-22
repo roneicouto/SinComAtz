@@ -1,0 +1,167 @@
+unit uClasseFuncoes;
+
+interface
+
+uses classes, System.Rtti, uClasseParametros, TypInfo;
+
+Type
+  TFuncoes = class(TComponent)
+  private
+    { private declarations }
+  protected
+    { protected declarations }
+  public
+    { public declarations }
+    (* retorna a string passada no paramentro sem os caracteres da constante *)
+    class function TiraNumeros(texto: string): string; static;
+    class function TiraSimbolos(texto: string; Adic: String = ''): string;
+    class function TiraAcento(Str: string): string;
+    class function IIf(Condicao: boolean; Str1, Str2: Variant): Variant;
+    class function CloneParametro(pObj: TParametro): TParametro;
+    class procedure cloneObjeto(Source, Dest: TObject);
+    class procedure Mensagem(texto: String); static;
+  published
+    { published declarations }
+  end;
+
+implementation
+
+uses
+  System.SysUtils, Forms, dialogs, Windows;
+
+{ TFuncoes }
+
+(* retorna a string passada no paramentro sem os caracteres da constante *)
+class function TFuncoes.TiraSimbolos(texto: string; Adic: String = ''): string;
+var
+  I: Integer;
+  sTemp, sRetorno: string;
+Const
+  Lixo = ' ,.:;/|()-' ;
+begin
+  for I := 1 to Length(texto) do
+  begin
+    sTemp := texto[I];
+    if Pos(sTemp, Lixo + Adic) = 0 then
+      sRetorno := sRetorno + sTemp;
+  end;
+  Result := sRetorno;
+end;
+
+(* retorna a string passada no paramentro sem os caracteres da constante *)
+class function TFuncoes.TiraNumeros(texto: string): string;
+var
+  I: Integer;
+  sTemp, sRetorno: string;
+Const
+  Lixo = '1234567890 ,.:;/|()-';
+begin
+  for I := 1 to Length(texto) do
+  begin
+    sTemp := texto[I];
+    if Pos(sTemp, Lixo) = 0 then
+      sRetorno := sRetorno + sTemp;
+  end;
+  Result := sRetorno;
+end;
+
+class function TFuncoes.TiraAcento(Str: string): string;
+  const
+    ComAcento = '‡‚ÍÙ˚„ı·ÈÌÛ˙Á¸¿¬ ‘€√’¡…Õ”⁄«‹';
+    SemAcento = 'aaeouaoaeioucuAAEOUAOAEIOUCU';
+  var x: Integer;
+begin;
+  for x := 1 to Length(Str) do
+    if Pos(Str[x],ComAcento) <> 0 then
+      Str[x] := SemAcento[Pos(Str[x], ComAcento)];
+      Result := UpperCase(Str);
+end;
+
+class procedure TFuncoes.cloneObjeto(Source, Dest: TObject);
+var
+  PropList: PPropList;
+  PropCount: Integer;
+  PropValue: Variant;
+  MethodProp: TMethod;
+  ObjectPropS, ObjectPropD: TObject;
+begin
+
+
+    try
+      for PropCount := 0 to PropCount - 1 do
+      begin
+        if PropList^[PropCount].Name = 'Name' then
+          Continue;
+
+        if (PropList^[PropCount].PropType^.Kind = tkClass) then
+        begin
+          ObjectPropS := GetObjectProp(Source, PropList^[PropCount]);
+          ObjectPropD := GetObjectProp(Dest, PropList^[PropCount]);
+          if ObjectPropD <> nil then
+            CloneObjeto(ObjectPropS, ObjectPropD)
+          else
+            SetObjectProp(Dest, PropList^[PropCount], ObjectPropS);
+        end
+        else if (PropList^[PropCount].PropType^.Kind = tkMethod) then
+        begin
+          MethodProp := GetMethodProp(Source, PropList^[PropCount].Name);
+          SetMethodProp(Dest, PropList^[PropCount].Name, MethodProp);
+        end
+        else
+        begin
+          PropValue := GetPropValue(Source, PropList^[PropCount].Name);
+          SetPropValue(Dest, PropList^[PropCount].Name, PropValue);
+        end;
+      end;
+    finally
+      FreeMem(PropList);
+    end;
+end;
+
+class function TFuncoes.CloneParametro(pObj: TParametro): TParametro;
+var
+  ctx, ctxResult: TRttiContext;
+  Tipo, tipoResult: TRttiType;
+  prop: TRttiProperty;
+  field: TRttiField;
+
+begin
+  try
+    if not Assigned(pObj) then
+    begin
+      raise Exception.Create
+        ('Parametro n„o instanciado. "class function Clone()"');
+    end;
+
+    Result := (pObj.NewInstance as TParametro);
+    ctx := TRttiContext.Create;
+    ctxResult := TRttiContext.Create;
+    Tipo := ctx.GetType(pObj.ClassInfo);
+    tipoResult := ctx.GetType(Result.ClassInfo);
+
+    for field in Tipo.GetFields do
+    begin
+      tipoResult.GetField(field.Name).SetValue(Result, field.GetValue(pObj));
+    end;
+
+  finally
+    ctx.Free;
+    ctxResult.Free;
+  end;
+end;
+
+class function TFuncoes.IIf(Condicao: boolean; Str1, Str2: Variant): Variant;
+begin
+  If Condicao then
+    Result := Str1
+  Else
+    Result := Str2
+end;
+
+class procedure TFuncoes.Mensagem(texto: String);
+begin
+   Application.MessageBox(pChar(texto), 'iCash', MB_OK);
+end;
+
+
+end.

@@ -1,0 +1,71 @@
+unit xClientDataSet;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Data.DB, Datasnap.DBClient;
+
+type
+  TPermissaoCampo = (cfgEditar, cfgMaximo, cfgMinimo, cfgValorPadrao, cfgExibirConteudo);
+  TPermissoesCampo = set of TPermissaoCampo;
+
+  TXField = class helper for TField
+  private
+    function GetPermiteConfigurar(const aPermissoes: TPermissoesCampo): TObject;
+    procedure SetPermiteConfigurar(const aPermissoes: TPermissoesCampo;
+      const Value: TObject);
+    { Private declarations }
+  protected
+    { Protected declarations }
+  public
+    { Public declarations }
+  published
+    { Published declarations }
+    property PermiteConfigurar[const aPermissoes:TPermissaoCampo]:TPermissoesCampo read GetPermiteConfigurar write SetPermiteConfigurar;
+  end;
+
+  TXClientDataSet = class(TClientDataSet)
+  private
+    FConfigurarSomenteLeitura: Boolean;
+    FPermiteConfigurar: TPermissoesCampo;
+    procedure SetConfigurarSomenteLeitura(const Value: Boolean);
+    function GetConfiguraSomenteLeitura: Boolean;
+    { Private declarations }
+  protected
+    { Protected declarations }
+  public
+    { Public declarations }
+  published
+    { Published declarations }
+    property PermiteConfigurar:TPermissoesCampo read FPermiteConfigurar write FPermiteConfigurar;
+//    property ConfigurarSomenteLeitura:Boolean Read GetConfiguraSomenteLeitura write SetConfigurarSomenteLeitura;
+  end;
+
+procedure Register;
+
+implementation
+
+{ TXField }
+
+procedure Register;
+begin
+  RegisterComponents('xComponentes', [TxClientDataSet]);
+end;
+
+
+{ TXField }
+
+
+{ TXClientDataSet }
+
+function TXClientDataSet.GetConfiguraSomenteLeitura: Boolean;
+begin
+  result := FConfigurarSomenteLeitura;
+end;
+
+procedure TXClientDataSet.SetConfigurarSomenteLeitura(const Value: Boolean);
+begin
+  FConfigurarSomenteLeitura := Value;
+end;
+
+end.
